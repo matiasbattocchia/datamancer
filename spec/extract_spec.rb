@@ -1,5 +1,14 @@
 require 'spec_helper'
 
+# TODO: Some wanted features
+
+# allow table_name to be both string or symbol
+# database.yml autoloading
+# autoincremental id
+# transform!
+# reject by array and regex
+# existent actions check
+
 describe Datamancer do
   
   context 'EXTRACT spell' do
