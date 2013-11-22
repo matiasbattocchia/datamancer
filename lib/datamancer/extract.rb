@@ -7,35 +7,52 @@ module Datamancer
 
     headers = case args[:from]
     when String
-# TODO: The first row (headers row) is dropped; to drop more initial rows should be an option.
-      csv = CSV.read args[:from]
+
+      # TODO: The first row (headers row) is dropped; to drop more initial rows should be an option.
+     
+      # TODO: Test the separator option.
+
+      csv = CSV.read args[:from], col_sep: (args[:separator] || ',')
       csv.shift
     when Hash
-      ActiveRecord::Base.establish_connection args[:from]
-      db = ActiveRecord::Base.connection
+      ::ActiveRecord::Base.establish_connection args[:from]
+      db = ::ActiveRecord::Base.connection
+
+      # TODO: Test this.
+
       table = args[:table] || args[:from][:table]
+      
+      raise ArgumentError,
+        'Extract requires a database table, i.e. extract(from: source, table: table_name)' unless table
+
       db.columns(table).map(&:name)
     end
 
     @fields  = {}
     @actions = {}
-
+    
     headers.each do |header|
       field   = header.to_sym
       mapping = header
       @fields[field] = mapping
     end unless args[:exclude]
 
-    define_singleton_method :field do |name, options = {}, &block|
-      mapping = options[:map] || name.to_s
-      
+    # The reason behind default_actions is the possibility to
+    # write reject_if: nil with the DSL.
+    default_actions = {reject_if: :ñil, reject_unless: :ñil}
+
+    define_singleton_method :field do |name, actions = {}, &block|
+      actions[:type] ||= actions[:type_default]
+      actions = default_actions.merge(actions)
+      mapping = actions[:map] || name.to_s
+
       raise MissingField,
         "Required field '#{mapping}' was not found in '#{args[:from]}'" unless headers.include? mapping
       
-      field   = name.to_sym
-      @fields.delete(options[:map].to_sym) if options[:map]
+      field = name.to_sym
+      @fields.delete(actions[:map].to_sym) if actions[:map]
       @fields[field]  = mapping
-      @actions[field] = options
+      @actions[field] = actions
       @actions[field][:block] = block
     end
 
@@ -64,75 +81,102 @@ module Datamancer
       hash_row = {}
 
       @fields.each do |field, index|
-        # Type defaults to String. Not necessary with CSV but needed when
-        # importing XLS or database.
-        value = array_row[index].to_s
-        hash_row[field] = field_actions field, value
+        value = array_row[index]
+        hash_row[field] = field_actions field, value, @actions[field]
       end
 
-      hash_row
-    end
+      if hash_row.has_value?(:reject)
+        puts hash_row
+        nil
+      else
+        hash_row
+      end
+    end.compact!
 
-    #output.compact
-    # row = ...
-    #row.has_value?(:reject) ? nil : row
+    output
   end
 
-  def field_actions field, value
-    actions = @actions[field]
+  def field_actions field, value, actions
     return value unless actions
 
-    ## Casting ##
-    
-# TODO: Better data type support.
-    
-    # Array
-    # BigDecimal
-    # Boolean
-    # Date
-    # DateTime
-    # Float
-    # Hash
-    # Integer
-    # Range
-    # Regexp
-    # String
-    # Symbol
-    # Time
-    # TimeWithZone
-
-    # Every data type should have a meaningful default value.
-    # If a value is missing in a CSV an empty String is assigned
-    # to it by Roo, instead of nil. For example "".to_i #=> 0.
-
-    case actions[:type].to_s
-    when 'Complex'
-      value = value.to_c
-    when 'Float'
-      value = value.to_f
-    when 'Integer'
-      value = value.to_i
-    when 'Rational'
-      value = value.to_r
-    when 'String'
-      value = value.to_s
-    when 'Symbol'
-      value = value.to_sym
-    end
+    # TODO: Revisit the order of actions.
 
     ## Block-passing ##
-
-    # Replaces wrapping, trimming, etc.?
+    
+    # TODO: Test this.
 
     if actions[:block]
       value = actions[:block].call(value)
     end
 
+    ## Stripping ##
+
+    # TODO: Test this.
+
+    if actions[:strip]
+      value.strip! if value.respond_to?(:strip!)
+    end
+
+    ## Casting ##
+
+    # Indexes and :type_default are not good friends.
+    # (Because of join while transforming.)
+
+    # TODO: Test this.
+
+    if value || actions[:type_default]
+
+      # TODO: Better data types support. From Mongoid:
+
+      # [ ] Array
+      # [ ] BigDecimal
+      # [ ] Boolean
+      # [x] Float
+      # [ ] Hash
+      # [x] Integer
+      # [ ] Range
+      # [ ] Regexp
+      # [x] String
+      # [x] Symbol
+      # [ ] Date
+      # [ ] DateTime
+      # [ ] Time
+      # [ ] TimeWithZone
+
+      case actions[:type].to_s
+      when 'Complex'
+        value = value.to_c
+      when 'Float'
+        value = value.to_f
+      when 'Integer'
+        value = value.to_i
+      when 'Rational'
+        value = value.to_r
+      when 'String'
+        value = value.to_s
+      when 'Symbol'
+        value = value.to_sym
+      end
+    end
+
+    ## Default value ##
+  
+    # TODO: Test this.
+
+    if value.nil? || (actions[:empty_default] && value.empty?)
+      value = actions[:default]
+    end
+
     ## Validation ##
 
-    #if @options[name][:reject_if]
-    #  value = :reject if value == @options[name][:reject_if]
-    #end
+    # TODO: Test this. Test to not reject nil by default.
+
+    if actions[:reject_if] == value ||
+      (actions[:reject_unless] != :ñil &&
+       actions[:reject_unless] != value)
+
+      value = :reject
+    end
 
     value
   end
