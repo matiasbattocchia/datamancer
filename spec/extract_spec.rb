@@ -9,6 +9,8 @@ require 'spec_helper'
 # reject by array and regex
 # existent actions check
 
+# TODO: case insentivity
+
 describe Datamancer do
   
   context 'EXTRACT spell' do
@@ -69,10 +71,11 @@ describe Datamancer do
           }.to raise_error(ArgumentError, 'Extract requires a source, i.e. extract(from: source)')
         end
 
-        
+
         it 'raises an exception if a required field is missing' do
 
-          # TODO: Better explanation for this error.
+          # TODO: Better explanation for this error. Assure that table appears
+          # even though it has been specified with :table option (outside :from).
 
           # source = case source_type
           # when 'CSV file' then "#{@source} file"
@@ -82,11 +85,11 @@ describe Datamancer do
           expect {
 
             extract(from: @source) do
-              field :surname
+              field :agE
             end
 
           }.to raise_error(MissingField,
-            "Required field 'surname' was not found in '#{@source}'")
+            "Required field 'agE' was not found in '#{@source}'")
         end
 
         

@@ -6,6 +6,8 @@ Data targets (sources and destinations) can be **databases** supported by Active
 
 To optimize, Datamancer relies in bulk SQL reading and writing, and does not instantiate ActiveRecord objects, which is used for the sole purpose of connecting to databases.
 
+It is tested to run over JRuby as well.
+
 ## Installation
 
 Add this line to your application's Gemfile:
@@ -21,6 +23,52 @@ Or install it yourself as:
     $ gem install datamancer
 
 ## Usage
+
+### Extract
+
+Method options:
+
+* from
+* table
+* exclude
+* separator
+
+Field options:
+
+* reject_if
+* reject_unless
+* map
+* type
+* type_default
+* empty_default
+* strip
+
+### Transform
+
+Method options:
+
+* exclude
+* join
+* on
+* unique
+
+Field options: Not allowed.
+
+### Load
+
+Method options:
+
+* to
+* table
+* exclude
+* append
+* batch
+
+Field options:
+
+* map
+
+## Example
 
 ```ruby
 require 'bundler/setup'

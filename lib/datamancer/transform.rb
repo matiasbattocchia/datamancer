@@ -33,12 +33,38 @@ module Datamancer
     output
   end
 
+  def where input, attributes
+
+  end
+
+  def unique input, attribute
+
+    attribute = attribute.to_sym
+    output = Array.new
+    unique_values = Array.new
+
+    input.each do |row|
+      unless unique_values.include?(row[attribute])
+        output << row
+        unique_values << row[attribute]
+      end
+    end
+
+    output
+  end
+
   def transform input, args = {}
 
     if args[:join]
       raise ArgumentError unless args[:on]
+      raise ArgumentError unless @header.include?(args[:on].to_sym)
+      raise ArgumentError unless args[:join].first.keys.include?(args[:on].to_sym)
 
       input = join input, args[:join], args[:on]
+    end
+
+    if args[:unique]
+      input = unique input, args[:unique]
     end
 
     # TODO: Method-overriding safeguard.
@@ -55,32 +81,40 @@ module Datamancer
       end
     end
 
+    define_singleton_method :row_number do
+      @row_number
+    end
+
     define_singleton_method :field do |name, value = nil, *args|
       raise MissingField,
-        "Required field '#{name}' was not found" unless respond_to?(name)
+        "Required field '#{name}' was not found" unless @input_row.include?(name.to_sym)
         
       @output_row[name.to_sym] = if value.is_a?(Symbol)
-                                   send(name).send *args.unshift(value)
+                                   send(name.downcase).send *args.unshift(value)
                                  else
-                                   value || send(name)
+                                   value || send(name.downcase)
                                  end
     end
 
     define_singleton_method :del_field do |name|
       raise MissingField,
-        "Filtered field '#{name}' was not found" unless respond_to?(name)
+        "Filtered field '#{name}' was not found" unless @input_row.include?(name.to_sym)
       
       @output_row.delete(name.to_sym)
     end
 
     define_singleton_method :new_field do |name, value|
       raise ExistingField,
-        "New field '#{name}' already exists" if respond_to?(name)
+        "New field '#{name}' already exists" if respond_to?(name.downcase)
 
       @output_row[name.to_sym] = value
     end
 
-    input.map do |row|
+    input.each_with_index.map do |row, row_number|
+
+      # TODO: Test for row_number.
+
+      @row_number = row_number
       @input_row = row
       @output_row = args[:exclude] ? {} : @input_row.dup
 
@@ -104,7 +138,7 @@ module Datamancer
 
     aggregated_input = Hash.new { |hash, key| hash[key] = Hash.new }
 
-    input.each do |row|
+    input.each_with_index do |row, row_number|
       @row = row
       @dimensions = {}
       @facts = {}

@@ -43,6 +43,7 @@ module Datamancer
 
     define_singleton_method :field do |name, actions = {}, &block|
       actions[:type] ||= actions[:type_default]
+      actions[:default] ||= actions[:empty_default]
       actions = default_actions.merge(actions)
       mapping = actions[:map] || name.to_s
 

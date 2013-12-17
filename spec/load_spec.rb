@@ -80,11 +80,13 @@ describe Datamancer do
           expect {
 
             load(@data, to: @destination) do
-              field :surname
+              field :agE
             end
 
+            # TODO: Check for table.
+
           }.to raise_error(MissingField,
-            "Required field 'surname' was not found in '#{@destination}'")
+            "Required field 'agE' was not found in '#{@destination}'")
         end
 
         
