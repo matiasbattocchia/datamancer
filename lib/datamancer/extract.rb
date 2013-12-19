@@ -172,11 +172,21 @@ module Datamancer
 
     # TODO: Test this. Test to not reject nil by default.
 
-    if actions[:reject_if] == value ||
-      (actions[:reject_unless] != :ñil &&
-       actions[:reject_unless] != value)
+    if actions[:reject_if].is_a? Array
+      actions[:reject_if].each do |reject_value|
+        value = :reject if reject_value == value
+      end
+    else
+      value = :reject if actions[:reject_if] == value
+    end
 
-      value = :reject
+    if actions[:reject_unless].is_a? Array
+      actions[:reject_unless].each do |reject_value|
+        value = :reject if reject_value != value
+      end
+    else
+      value = :reject if actions[:reject_unless] != :ñil &&
+                         actions[:reject_unless] != value
     end
 
     value

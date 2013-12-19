@@ -57,7 +57,7 @@ module Datamancer
 
     if args[:join]
       raise ArgumentError unless args[:on]
-      raise ArgumentError unless @header.include?(args[:on].to_sym)
+      raise ArgumentError unless input.first.keys.include?(args[:on].to_sym)
       raise ArgumentError unless args[:join].first.keys.include?(args[:on].to_sym)
 
       input = join input, args[:join], args[:on]
@@ -85,10 +85,26 @@ module Datamancer
       @row_number
     end
 
+    define_singleton_method :row do
+      @supplementary_row
+    end
+
+    define_singleton_method :count do
+      @count += 1
+    end
+
+    define_singleton_method :output do
+      @output
+    end
+
+    define_singleton_method :switch do |slot|
+      @slot = slot
+    end
+
     define_singleton_method :field do |name, value = nil, *args|
       raise MissingField,
         "Required field '#{name}' was not found" unless @input_row.include?(name.to_sym)
-        
+
       @output_row[name.to_sym] = if value.is_a?(Symbol)
                                    send(name.downcase).send *args.unshift(value)
                                  else
@@ -105,27 +121,39 @@ module Datamancer
 
     define_singleton_method :new_field do |name, value|
       raise ExistingField,
-        "New field '#{name}' already exists" if respond_to?(name.downcase)
+        "New field '#{name}' already exists" if @input_row.include?(name.to_sym)
 
       @output_row[name.to_sym] = value
     end
 
-    input.each_with_index.map do |row, row_number|
+    # TODO: Test for count.
+
+    @count = 0
+    
+    # TODO: Test for slots.
+    
+    @output = Hash.new { |h, k| h[k] = [] }
+
+    input.each_with_index do |row, row_number|
 
       # TODO: Test for row_number.
+      # TODO: Test for (supplementary) row.
 
       @row_number = row_number
       @input_row = row
+      @supplementary_row = @input_row.dup
       @output_row = args[:exclude] ? {} : @input_row.dup
 
       yield if block_given?
 
-      @output_row
+      @output[@slot] << @output_row
     end
+
+    @output.length == 1? @output[nil] : @output
   end
 
   def aggregate input
-    
+
     define_singleton_method :dim do |name|
       name = name.to_sym
       @dimensions[name] = @row[name]
