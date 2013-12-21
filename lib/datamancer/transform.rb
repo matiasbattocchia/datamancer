@@ -30,6 +30,10 @@ module Datamancer
       end
     end
 
+    # TODO: Test this:
+
+    raise StandardError, 'Sadness: null join.' if output.empty?
+
     output
   end
 

@@ -75,7 +75,15 @@ module Datamancer
         @fields[field] = index
       end
 
-      db.select_rows("SELECT #{columns} FROM #{table}")
+      # TODO: Test top.
+      # TODO: Top for CSV.
+      # TODO: Top for support several databases.
+
+      if args[:top]
+        db.select_rows("SELECT TOP #{args[:top]} #{columns} FROM #{table}" )
+      else
+        db.select_rows("SELECT #{columns} FROM #{table}")
+      end
     end
 
     output.map! do |array_row|
@@ -87,7 +95,6 @@ module Datamancer
       end
 
       if hash_row.has_value?(:reject)
-        puts hash_row
         nil
       else
         hash_row
@@ -139,7 +146,7 @@ module Datamancer
       # [ ] Regexp
       # [x] String
       # [x] Symbol
-      # [ ] Date
+      # [x] Date
       # [ ] DateTime
       # [ ] Time
       # [ ] TimeWithZone
@@ -157,6 +164,9 @@ module Datamancer
         value = value.to_s
       when 'Symbol'
         value = value.to_sym
+      when 'Date'
+        # From "1900-01-01 00:00:00.000" to "19000101".
+        value = value.gsub('-', '')[0..7] 
       end
     end
 

@@ -74,7 +74,7 @@ module Datamancer
       # String values must be enclosed by single quotes.
       inserts.map! do |insert|
         insert.map! do |field|
-          field.is_a?(String) ? "'#{field}'" : field
+          field.is_a?(String) ? "'#{field}'" : (field ? field : 'NULL')
         end
 
         "(#{insert.join(',')})"
