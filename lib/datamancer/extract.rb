@@ -39,7 +39,7 @@ module Datamancer
 
     # The reason behind default_actions is the possibility to
     # write reject_if: nil with the DSL.
-    default_actions = {reject_if: :ñil, reject_unless: :ñil}
+    default_actions = {reject_if: :nil, reject_unless: :nil}
 
     define_singleton_method :field do |name, actions = {}, &block|
       actions[:type] ||= actions[:type_default]
@@ -195,7 +195,7 @@ module Datamancer
         value = :reject if reject_value != value
       end
     else
-      value = :reject if actions[:reject_unless] != :ñil &&
+      value = :reject if actions[:reject_unless] != :nil &&
                          actions[:reject_unless] != value
     end
 
