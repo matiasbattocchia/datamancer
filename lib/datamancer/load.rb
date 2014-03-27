@@ -1,5 +1,50 @@
 module Datamancer
 
+  def raw input, args
+
+    raise ArgumentError,
+      'Raw requires a destination, i.e. raw(data, to: destination)' unless
+        args.is_a?(Hash) && args[:to]
+
+    ::ActiveRecord::Base.establish_connection(args[:to])
+
+    # TODO: Test this.
+
+    # table = args[:table] || args[:to][:table]
+      
+    # raise ArgumentError,
+    #   'Raw requires a database table, i.e. raw(data, to: destination, table: table_name)' unless table
+
+    # TODO: Method-overriding safeguard.
+  
+    input.first.each_key do |key|
+      define_singleton_method key.downcase do
+      
+        # Some methods applied to fields might modify the original fields.
+        # Fields could be duplicated in case this be a common problem.
+
+        #@input_row[key].dup
+
+        @input_row[key]
+      end
+    end
+
+    define_singleton_method :db do
+      ::ActiveRecord::Base.connection
+    end
+    
+    define_singleton_method :query do |query|
+      ::ActiveRecord::Base.connection.execute query
+    end
+
+    input.each do |row|
+      @input_row = row
+      
+      yield if block_given?
+    end
+  end
+
+
   def load input, args
 
     raise ArgumentError,
@@ -64,7 +109,7 @@ module Datamancer
       table = args[:table] || args[:to][:table]
       
       raise ArgumentError,
-        'Load requires a database table, i.e. load(to: destination, table: table_name)' unless table
+        'Load requires a database table, i.e. load(data, to: destination, table: table_name)' unless table
 
       ::ActiveRecord::Base.connection.delete("DELETE FROM #{table}") unless args[:append]
       batch_size = args[:batch] || 1000

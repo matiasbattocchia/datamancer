@@ -1,5 +1,35 @@
 module Datamancer
 
+  def add left, right
+    first_row = left.first.merge right.first
+
+    keys = first_row.keys
+
+    valores_por_defecto = {}
+
+    keys.each do |key|
+      valores_por_defecto[key] = case first_row[key]
+                                 when String then ''
+                                 when Numeric then 0
+                                 else nil end
+    end
+
+    output = []
+
+    (left + right).each do |input_row|
+
+      output_row = {}
+
+      keys.each do |key|
+        output_row[key] = input_row[key] || valores_por_defecto[key]
+      end
+
+      output << output_row
+    end
+
+    output
+  end
+
   def join left, right, attribute
 
     attribute = attribute.to_sym
@@ -59,12 +89,18 @@ module Datamancer
 
   def transform input, args = {}
 
+    # TODO: Mensajes que expliquen mejor los estos errores.
+
     if args[:join]
       raise ArgumentError unless args[:on]
       raise ArgumentError unless input.first.keys.include?(args[:on].to_sym)
       raise ArgumentError unless args[:join].first.keys.include?(args[:on].to_sym)
 
       input = join input, args[:join], args[:on]
+    end
+
+    if args[:add]
+      input = add input, args[:add]
     end
 
     if args[:unique]
@@ -74,13 +110,13 @@ module Datamancer
     # TODO: Method-overriding safeguard.
   
     input.first.each_key do |key|
-      define_singleton_method key.downcase do
+      define_singleton_method key.to_s.gsub(' ', '_').downcase do
       
         # Some methods applied to fields might modify the original fields.
         # Fields could be duplicated in case this be a common problem.
 
         #@input_row[key].dup
-
+        
         @input_row[key]
       end
     end

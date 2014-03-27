@@ -69,20 +69,29 @@ module Datamancer
       csv
 
     when Hash
-      columns = @fields.map { |field, mapping| "#{mapping} AS #{field}" }.join(', ')
+
+      #TODO: Test for column names with spaces.
+      #TODO: Implement all the SQL escaping cases.
+
+      columns = @fields.map { |field, mapping| "[#{mapping}] AS [#{field}]" }.join(', ')
 
       @fields.keys.each_with_index do |field, index|
         @fields[field] = index
       end
 
-      # TODO: Test top.
+      # TODO: Test top, distinct, where.
       # TODO: Top for CSV.
       # TODO: Top for support several databases.
 
-      if args[:top]
-        db.select_rows("SELECT TOP #{args[:top]} #{columns} FROM #{table}" )
+      if args[:distinct]
+        db.select_rows(
+          "SELECT DISTINCT #{columns} FROM #{table}")
+      elsif args[:top]
+        db.select_rows(
+          "SELECT TOP #{args[:top]} #{columns} FROM #{table} #{'WHERE ' + args[:where] if args[:where]}")
       else
-        db.select_rows("SELECT #{columns} FROM #{table}")
+        db.select_rows(
+          "SELECT #{columns} FROM #{table} #{'WHERE ' + args[:where] if args[:where]}")
       end
     end
 

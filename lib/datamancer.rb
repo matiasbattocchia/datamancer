@@ -1,4 +1,5 @@
 require 'datamancer/version'
+require 'datamancer/datastream'
 require 'datamancer/extract'
 require 'datamancer/transform'
 require 'datamancer/load'
