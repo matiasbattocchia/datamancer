@@ -4,150 +4,151 @@ describe Datamancer do
 
   context 'TRANSFORMATION spell' do
     
-    before(:all) do
-      csv_file = $dir + '/source.csv'
-      @data = extract from: csv_file
-    end
+    # before(:all) do
+    #   csv_file = $dir + '/source.csv'
+    #   @data = extract from: csv_file
+    # end
  
     
-    it 'passes fields implicitly' do
-      expect(
-        transform(@data)
-      ).to eq(@data)
+    # it 'passes fields implicitly' do
+    #   expect(
+    #     transform(@data)
+    #   ).to eq(@data)
 
-      expect(
-        transform(@data) do
-          field :name
-        end
-      ).to eq(@data)
-    end
-
-    
-    it 'passes fields explicitly' do
-
-      # TODO: What happens when no field is passed?
-      
-      expect(
-
-        transform(@data, exclude: true) do
-          field :name
-        end
-
-      ).to eq([{name: 'Foo'}, {name: 'Bar'}])
-    end
+    #   expect(
+    #     transform(@data) do
+    #       field :name
+    #     end
+    #   ).to eq(@data)
+    # end
 
     
-    it 'filters fields explicitly' do
+    # it 'passes fields explicitly' do
 
-      # TODO: What happens when all fields are deleted?
+    #   # TODO: What happens when no field is passed?
       
-      expect(
+    #   expect(
 
-        transform(@data) do
-          del_field :age
-        end
+    #     transform(@data, exclude: true) do
+    #       field :name
+    #     end
 
-      ).to eq([{name: 'Foo'}, {name: 'Bar'}])
-    end
+    #   ).to eq([{name: 'Foo'}, {name: 'Bar'}])
+    # end
+
+    
+    # it 'filters fields explicitly' do
+
+    #   # TODO: What happens when all fields are deleted?
+      
+    #   expect(
+
+    #     transform(@data) do
+    #       del_field :age
+    #     end
+
+    #   ).to eq([{name: 'Foo'}, {name: 'Bar'}])
+    # end
  
     
-    it 'raises an exception if a field is missing' do
-      expect {
+    # it 'raises an exception if a field is missing' do
+    #   expect {
 
-        transform(@data) do
-          field :agE
-        end
+    #     transform(@data) do
+    #       field :agE
+    #     end
 
-      }.to raise_error(MissingField,
-        "Required field 'agE' was not found")
+    #   }.to raise_error(MissingField,
+    #     "Required field 'agE' was not found")
 
-      expect {
+    #   expect {
 
-        transform(@data) do
-          del_field :agE
-        end
+    #     transform(@data) do
+    #       del_field :agE
+    #     end
 
-      }.to raise_error(MissingField,
-        "Filtered field 'agE' was not found")
-    end
-
-    
-    it 'changes fields through *true* expressions' do
-      expect(
-
-        transform(@data) do
-          field :name, false
-          field :age, true
-        end
-
-      ).to eq([{name: 'Foo', age: true}, {name: 'Bar', age: true}])
-    end
-
-
-    it 'creates fields' do
-      expect(
-        transform(@data) do
-          new_field :new, true
-        end
-      ).to eq([{name: 'Foo', age: '27', new: true}, {name: 'Bar', age: '42', new: true}])
-
-      # TODO: A better explanation for this error.
-      
-      expect{
-        transform(@data) do
-          new_field :new
-        end
-      }.to raise_error(ArgumentError)
-      
-      expect {
-        transform(@data) do
-          new_field :name, true
-        end
-      }.to raise_error(ExistingField,
-          "New field 'name' already exists")
-    end
+    #   }.to raise_error(MissingField,
+    #     "Filtered field 'agE' was not found")
+    # end
 
     
-    it 'lets field names to be strings and allows field methods to co-occur' do
-      expect(
+    # it 'changes fields through *true* expressions' do
+    #   expect(
 
-        transform(@data) do
-          field 'name'
-          del_field 'age'
-          new_field 'new', true
-        end
+    #     transform(@data) do
+    #       field :name, false
+    #       field :age, true
+    #     end
 
-      ).to eq([{name: 'Foo', new: true}, {name: 'Bar', new: true}])
-    end
+    #   ).to eq([{name: 'Foo', age: true}, {name: 'Bar', age: true}])
+    # end
+
+
+    # it 'creates fields' do
+    #   expect(
+    #     transform(@data) do
+    #       new_field :new, true
+    #     end
+    #   ).to eq([{name: 'Foo', age: '27', new: true}, {name: 'Bar', age: '42', new: true}])
+
+    #   # TODO: A better explanation for this error.
+      
+    #   expect{
+    #     transform(@data) do
+    #       new_field :new
+    #     end
+    #   }.to raise_error(ArgumentError)
+      
+    #   expect {
+    #     transform(@data) do
+    #       new_field :name, true
+    #     end
+    #   }.to raise_error(ExistingField,
+    #       "New field 'name' already exists")
+    # end
 
     
-    it 'changes fields sending messages as symbols' do
-      expect(
-        transform(@data) do
-          field :name, :slice, 0
-          field :age, :to_i
-        end
-      ).to eq([{name: 'F', age: 27}, {name: 'B', age: 42}])
+    # it 'lets field names to be strings and allows field methods to co-occur' do
+    #   expect(
+
+    #     transform(@data) do
+    #       field 'name'
+    #       del_field 'age'
+    #       new_field 'new', true
+    #     end
+
+    #   ).to eq([{name: 'Foo', new: true}, {name: 'Bar', new: true}])
+    # end
+
+    
+    # it 'changes fields sending messages as symbols' do
+    #   expect(
+    #     transform(@data) do
+    #       field :name, :slice, 0
+    #       field :age, :to_i
+    #     end
+    #   ).to eq([{name: 'F', age: 27}, {name: 'B', age: 42}])
       
-      expect(
-        transform(@data) do
-          field :name, 'slice', 0
-          field :age, 'to_i'
-        end
-      ).to eq([{name: 'slice', age: 'to_i'}, {name: 'slice', age: 'to_i'}])
-    end
+    #   expect(
+    #     transform(@data) do
+    #       field :name, 'slice', 0
+    #       field :age, 'to_i'
+    #     end
+    #   ).to eq([{name: 'slice', age: 'to_i'}, {name: 'slice', age: 'to_i'}])
+    # end
 
 
-    it 'generates field getters per row' do
-      expect(
+    # it 'generates field getters per row' do
+    #   expect(
 
-        transform(@data) do
-          new_field :namage, name.downcase + age
-        end
+    #     transform(@data) do
+    #       new_field :namage, name.downcase + age
+    #     end
 
-      ).to eq([{name: 'Foo', age: '27', namage: 'foo27'}, {name: 'Bar', age: '42', namage: 'bar42'}])
-    end
+    #   ).to eq([{name: 'Foo', age: '27', namage: 'foo27'}, {name: 'Bar', age: '42', namage: 'bar42'}])
+    # end
 
+#############################################################################
 
     it 'drops duplicated rows' do
       duplicated_data = @data + @data

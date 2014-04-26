@@ -159,7 +159,7 @@ module Datamancer
       @output_row.delete(name.to_sym)
     end
 
-    define_singleton_method :new_field do |name, value|
+    define_singleton_method :create do |name, value|
       raise ExistingField,
         "New field '#{name}' already exists" if @input_row.include?(name.to_sym)
 
@@ -170,13 +170,10 @@ module Datamancer
 
     @count = 0
     
-    # TODO: Test for slots.
-    
-    @output = Hash.new { |h, k| h[k] = [] }
+    @output = []
 
     input.each_with_index do |row, row_number|
 
-      # TODO: Test for row_number.
       # TODO: Test for (supplementary) row.
 
       @row_number = row_number
@@ -186,10 +183,10 @@ module Datamancer
 
       yield if block_given?
 
-      @output[@slot] << @output_row
+      @output << @output_row
     end
 
-    @output.length == 1? @output[nil] : @output
+    @output
   end
 
   def aggregate input
