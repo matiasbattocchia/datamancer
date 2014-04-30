@@ -148,8 +148,6 @@ describe Datamancer do
     #   ).to eq([{name: 'Foo', age: '27', namage: 'foo27'}, {name: 'Bar', age: '42', namage: 'bar42'}])
     # end
 
-#############################################################################
-
     it 'drops duplicated rows' do
       duplicated_data = @data + @data
       
@@ -165,53 +163,53 @@ describe Datamancer do
     end
 
 
-    context 'combines records by' do
+    # context 'combines records by' do
 
-      before(:all) do
-        @left_data =
-        [{name: 'Foo', some_id: 1},
-         {name: 'Bar', some_id: 2},
-         {name: 'Baz', some_id: 2},
-         {name: 'Foobar', some_id: nil}]
+    #   before(:all) do
+    #     @left_data =
+    #     [{name: 'Foo', some_id: 1},
+    #      {name: 'Bar', some_id: 2},
+    #      {name: 'Baz', some_id: 2},
+    #      {name: 'Foobar', some_id: nil}]
 
-        @right_data =
-        [{age: 0, some_id: nil},
-         {age: 27, some_id: 1},
-         {age: 33, some_id: 1},
-         {age: 42, some_id: 2}]
-      end
+    #     @right_data =
+    #     [{age: 0, some_id: nil},
+    #      {age: 27, some_id: 1},
+    #      {age: 33, some_id: 1},
+    #      {age: 42, some_id: 2}]
+    #   end
 
 
-      it 'inner join' do
+    #   it 'inner join' do
 
-        # TODO: A better explanation for this error.
+    #     # TODO: A better explanation for this error.
 
-        expect {
-          transform(@left_data, join: @right_data)
-        }.to raise_error(ArgumentError)
+    #     expect {
+    #       transform(@left_data, join: @right_data)
+    #     }.to raise_error(ArgumentError)
         
-        expect {
-          transform(@left_data, join: @right_data, on: 'some_ID')
-        }.to raise_error(ArgumentError)
+    #     expect {
+    #       transform(@left_data, join: @right_data, on: 'some_ID')
+    #     }.to raise_error(ArgumentError)
 
-        expect(
-          transform(@left_data, join: @right_data, on: 'some_id') do
-            del_field :some_id
-            new_field :namage, name.downcase + age.to_s
-          end
-        ).to eq([{name: 'Foo', age: 27, namage: 'foo27'},
-                 {name: 'Foo', age: 33, namage: 'foo33'},
-                 {name: 'Bar', age: 42, namage: 'bar42'},
-                 {name: 'Baz', age: 42, namage: 'baz42'}])
-      end
+    #     expect(
+    #       transform(@left_data, join: @right_data, on: 'some_id') do
+    #         del_field :some_id
+    #         new_field :namage, name.downcase + age.to_s
+    #       end
+    #     ).to eq([{name: 'Foo', age: 27, namage: 'foo27'},
+    #              {name: 'Foo', age: 33, namage: 'foo33'},
+    #              {name: 'Bar', age: 42, namage: 'bar42'},
+    #              {name: 'Baz', age: 42, namage: 'baz42'}])
+    #   end
 
 
-      it 'left outer join'
-      it 'right outer join'
-      it 'full outer join'
+    #   it 'left outer join'
+    #   it 'right outer join'
+    #   it 'full outer join'
 
-    end
-  end
+    # end
+  # end
 
 
   context 'aggregation' do

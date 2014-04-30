@@ -1,13 +1,23 @@
 module Datamancer
   class ExistingColumn < StandardError; end
   class MissingColumn < StandardError; end
+  class NullJoin < StandardError; end
 
   class Datastream
-    attr_accessor :data
+    attr_reader :data, :headers
 
     def initialize array = []
+      self.data = array
+    end
+
+    def data= array
+      # TODO: Delete previous [column_name] methods before creating new.
+      #
+      # It is expected that column identifiers respond to #to_s, beyond this
+      # they can be objects of any class.
+
       @data = array
-      @headers = array.first.keys if array.first
+      @headers = array.first ? array.first.keys : []
 
       unless array.empty?
         @headers.each do |column_name|
@@ -26,9 +36,7 @@ module Datamancer
     end
 
     def transform! &block
-
       if block
-
         @outer_self = block.binding.eval 'self'
 
         @data.each do |row|
@@ -36,7 +44,6 @@ module Datamancer
           @readonly_row = row.dup
 
           instance_eval &block
-
         end
       end
 
@@ -48,7 +55,6 @@ module Datamancer
     end
 
     def select! *columns
-
       columns.map!(&:to_sym)
 
       columns.each do |column_name|
@@ -65,25 +71,36 @@ module Datamancer
       end
     end
 
-    def join left, right, attribute
+    def join datastream
+      duplicate.join! datastream
+    end
 
-      attribute = attribute.to_sym
+    def join! datastream
+      left = self.data
+      right = datastream.data
+      columns = self.headers & datastream.headers
+
+      raise NullJoin, 'Datastreams do not share any column' if columns.empty?
 
       left_groups  = Hash.new { |hash, key| hash[key] = [] }
       right_groups = Hash.new { |hash, key| hash[key] = [] }
 
-      left.each do |tuple|
-        left_groups[tuple[attribute]] << tuple if tuple[attribute]
-      end
-      
-      right.each do |tuple|
-        right_groups[tuple[attribute]] << tuple if tuple[attribute]
+      left.each do |row|
+        values = columns.map { |column| row[column] }
+
+        left_groups[values] << row unless values.include? nil
       end
 
-      output = Array.new
-  
+      right.each do |row|
+        values = columns.map { |column| row[column] }
+
+        right_groups[values] << row unless values.include? nil
+      end
+
+      output = []
+
       left_groups.each do |key, left_group|
-        
+
         if right_group = right_groups[key]
 
           left_group.each do |left_tuple|
@@ -95,41 +112,47 @@ module Datamancer
         end
       end
 
-      # TODO: Test this:
+      # TODO: I do not like this. Why a datastream's data could be
+      # modified directly? Anyway, #join! is likely to be reimplemented
+      # many times as more features are added. It will improve.
+      self.data = output
+      self
+    end
 
-      raise StandardError, 'Sadness: null join.' if output.empty?
+    def join_and_delete datastream
+      duplicate.join_and_delete! datastream
+    end
 
-      output
+    def join_and_delete! datastream
+      columns = self.headers & datastream.headers
+
+      join!(datastream).transform! do
+        columns.each { |column| delete column }
+      end
     end
   
-    def add left, right
-      first_row = left.first.merge right.first
-
-      keys = first_row.keys
-
-      valores_por_defecto = {}
-
-      keys.each do |key|
-        valores_por_defecto[key] = case first_row[key]
-                                  when String then ''
-                                  when Numeric then 0
-                                  else nil end
-      end
+    def union_all! datastream
+      keys = self.headers | datastream.headers
 
       output = []
 
-      (left + right).each do |input_row|
+      (self.data + datastream.data).each do |input_row|
 
         output_row = {}
 
         keys.each do |key|
-          output_row[key] = input_row[key] || valores_por_defecto[key]
+          output_row[key] = input_row[key]
         end
 
         output << output_row
       end
 
-      output
+      self.data = output
+      self
+    end
+
+    def union_all datastream
+      duplicate.union_all! datastream
     end
 
     private

@@ -17,8 +17,17 @@ describe Datastream do
   #     expect{ Datastream.new "" }.to 
   #   end
   # end
+
+  # describe '::new' do
+  #   it 'creates a datastream from an array' do
+  #     ds = Datastream.new @array
+  #     expect(ds).to 
+  #     ds.data == []
+  #     ds.headers == []
+  #   end
+  # end
   it { should respond_to(:data) }
-  # it { is_expected.to respond_to(:headers) }
+  it { should respond_to(:headers) }
   # it { is_expected.to respond_to(:data_types) }
 
   # map, pop, shift, unshift, all, first, last, length/count, empty?
@@ -46,55 +55,44 @@ describe Datastream do
   # describe '#right_join'
   # describe '#outer_join'
 
-  describe '#union'
-  describe '#|'
-  describe '#union_all'
-  describe '#+'
+  # describe '#union'
+  # describe '#|'
+  # describe '#+'
 
-  describe '#except'
-  describe '#except_all'
-  describe '#-'
+  # describe '#except'
+  # describe '#except_all'
+  # describe '#-'
 
-  describe '#intersect'
-  describe '#&'
-  describe '#intersect_all'
+  # describe '#intersect'
+  # describe '#&'
+  # describe '#intersect_all'
 
   describe '#distinct'
-  describe '#uniq'
-  describe '#unique'
-
-
-  before(:each) do
-    @ds = Datastream.new [{name: 'Foo', email: 'foo@mail'},
-                          {name: 'Bar', email: 'bar@mail'}]
-  end
+  # describe '#uniq'
+  # describe '#unique'
 
   describe '#transform' do
-    it 'returns a datastream' do
-      expect(@ds.transform).to be_a Datastream
+
+    before(:each) do
+      @ds = Datastream.new [{name: 'Foo', email: 'foo@mail'},
+                            {name: 'Bar', email: 'bar@mail'}]
     end
 
-    it 'returns a new datastream' do
-      expect(@ds.transform.object_id).not_to eq(@ds.object_id)
-    end
-
-    it 'does not modifies itself' do
-      
+    it 'does not modifies itself' do      
       @ds.transform do
         update :name, nil
       end
-      
+
       expect(@ds.data).to eq(
         [{name: 'Foo', email: 'foo@mail'},
          {name: 'Bar', email: 'bar@mail'}])
     end
-    
-    it 'modifies the datastream' do
-      
+
+    it 'modifies the returned datastream' do
       ds = @ds.transform do
         update :name, nil
       end
-      
+
       expect(ds.data).to eq(
         [{name: nil, email: 'foo@mail'},
          {name: nil, email: 'bar@mail'}])
@@ -102,11 +100,13 @@ describe Datastream do
   end
 
   describe '#transform!' do
-    # TODO: row number, count, create row, delete row, readonly_row access.
 
-    it 'returns a datastream' do
-      expect(@ds.transform!).to be_a Datastream
+    before(:each) do
+      @ds = Datastream.new [{name: 'Foo', email: 'foo@mail'},
+                            {name: 'Bar', email: 'bar@mail'}]
     end
+
+    # TODO: row number, count, create row, delete row, readonly_row access.
 
     it 'returns itself' do
       expect(@ds.transform!.object_id).to eq(@ds.object_id)
@@ -114,7 +114,6 @@ describe Datastream do
 
     describe '{ create }' do
       it 'adds a column to the datastream' do
-
         @ds.transform! do
           create :admin, false
           create 'mod', true
@@ -134,6 +133,10 @@ describe Datastream do
 
         }.to raise_error(ExistingColumn,
           "Column 'name' already exists")
+      end
+      
+      it 'is a private method' do
+        expect { @ds.create }.to raise_error NoMethodError
       end
     end
 
@@ -158,6 +161,10 @@ describe Datastream do
         }.to raise_error(MissingColumn,
           "Column 'NAME' was not found")
       end
+      
+      it 'is a private method' do
+        expect { @ds.read }.to raise_error NoMethodError
+      end
     end
 
     describe '{ [column_name] }' do
@@ -174,6 +181,10 @@ describe Datastream do
         end
 
         expect(values).to eq(['Foo', 'Bar'])
+      end
+ 
+      it 'is a private method' do
+        expect { @ds.name }.to raise_error NoMethodError
       end
 
       it 'delegates other than column names references to the block-declaring context' do
@@ -240,11 +251,14 @@ describe Datastream do
         }.to raise_error(MissingColumn,
           "Column 'EMAIL' was not found")
       end
+
+      it 'is a private method' do
+        expect { @ds.update }.to raise_error NoMethodError
+      end
     end
 
     describe '{ delete }' do
       it 'removes a column from the datastream' do
-
         @ds.transform! do
           delete :name
           delete 'email'
@@ -263,11 +277,14 @@ describe Datastream do
         }.to raise_error(MissingColumn,
           "Column 'NAME' was not found")
       end
+
+      it 'is a private method' do
+        expect { @ds.delete }.to raise_error NoMethodError
+      end
     end
 
     describe '{ rename }' do
       it 'renames a column' do
-
         @ds.transform! do
           rename :name, :nombre
           rename 'email', 'correo'
@@ -299,6 +316,10 @@ describe Datastream do
         }.to raise_error(ExistingColumn,
           "Column 'email' already exists")
       end
+
+      it 'is a private method' do
+        expect { @ds.rename }.to raise_error NoMethodError
+      end
     end
 
     describe '{ _ }'
@@ -314,6 +335,10 @@ describe Datastream do
         expect(values).to eq(
           [{name: 'Foo', email: 'foo@mail'},
            {name: 'Bar', email: 'bar@mail'}])
+      end
+
+      it 'is a private method' do
+        expect { @ds.row }.to raise_error NoMethodError
       end
     end
 
@@ -331,39 +356,38 @@ describe Datastream do
   end
 
   describe '#select' do
-    it 'returns a datastream' do
-      expect(@ds.select).to be_a Datastream
-    end
 
-    it 'returns a new datastream' do
-      expect(@ds.select.object_id).not_to eq(@ds.object_id)
+    before(:each) do
+      @ds = Datastream.new [{name: 'Foo', email: 'foo@mail', admin: false},
+                            {name: 'Bar', email: 'bar@mail', admin: false}]
     end
 
     it 'does not modifies itself' do
-      
-      ds = @ds.select :name 
+      ds = @ds.select :name
       
       expect(@ds.data).to eq(
-        [{name: 'Foo', email: 'foo@mail'},
-         {name: 'Bar', email: 'bar@mail'}])
+        [{name: 'Foo', email: 'foo@mail', admin: false},
+         {name: 'Bar', email: 'bar@mail', admin: false}])
     end
 
     it 'retrieves specified columns' do
-      ds = @ds.select :name
+      ds = @ds.select :name, 'email'
 
       expect(ds.data).to eq(
-        [{name: 'Foo'},
-         {name: 'Bar'}])
+        [{name: 'Foo', email: 'foo@mail'},
+         {name: 'Bar', email: 'bar@mail'}])
     end
   end
 
   describe '#select!' do
-    it 'returns a datastream' do
-      expect(@ds.select!).to be_a Datastream
+
+    before(:each) do
+      @ds = Datastream.new [{name: 'Foo', email: 'foo@mail', admin: false},
+                            {name: 'Bar', email: 'bar@mail', admin: false}]
     end
 
     it 'returns itself' do
-      expect(@ds.select!.object_id).to eq(@ds.object_id)
+      expect(@ds.select!(:name).object_id).to eq(@ds.object_id)
     end
 
     it 'retrieves specified columns' do
@@ -386,12 +410,230 @@ describe Datastream do
 
   describe '#join' do
 
+    before(:each) do
+      @one_ds = Datastream.new [{number: 1,   letter: 'a', name: 'Foo'},
+                                {number: 2,   letter: 'a', name: 'Bar'},
+                                {number: 2,   letter: 'b', name: 'Baz'},
+                                {number: nil, letter: 'c', name: 'Foobar'}]
+
+      @another_ds = Datastream.new [{number: 1,   letter: 'a', city: 'Foobaria'},
+                                    {number: 2,   letter: 'b', city: 'Barbaza'},
+                                    {number: 3,   letter: 'b', city: 'Bazfooa'},
+                                    {number: nil, letter: 'c', city: '01'}]
+    end
+
+    it 'does not modifies itself' do
+      ds = @one_ds.join @another_ds
+
+      expect(@one_ds.data).to eq(
+        [{number: 1,   letter: 'a', name: 'Foo'},
+         {number: 2,   letter: 'a', name: 'Bar'},
+         {number: 2,   letter: 'b', name: 'Baz'},
+         {number: nil, letter: 'c', name: 'Foobar'}])
+    end
+
+    it 'does not modifies the joining datastream' do
+      ds = @one_ds.join @another_ds
+
+      expect(@another_ds.data).to eq(
+        [{number: 1,   letter: 'a', city: 'Foobaria'},
+         {number: 2,   letter: 'b', city: 'Barbaza'},
+         {number: 3,   letter: 'b', city: 'Bazfooa'},
+         {number: nil, letter: 'c', city: '01'}])
+    end
+ 
+    it 'performs a natural join between two datastreams' do
+      ds = @one_ds.join @another_ds
+
+      expect(ds.data).to eq(
+        [{number: 1, letter: 'a', name: 'Foo', city: 'Foobaria'},
+         {number: 2, letter: 'b', name: 'Baz', city: 'Barbaza'}])
+    end
   end
 
-  # describe '::new' do
-  #   it 'creates a datastream from an array' do
-  #     ds = Datastream.new @array
-  #     expect(ds).to 
-  #   end
-  # end
+    # it 'raises an exception if a column is missing' do
+    #   expect {
+    #     @one_ds.join @another_ds, :NUMBER
+    #   }.to raise_error(MissingColumn,
+    #     "Column 'NUMBER' was not found")
+    # end
+
+    # it 'performs an equi-join between two datasets' do
+    #   ds = @one_ds.join @another_ds, :number
+
+    #   expect(ds.data).to eq(
+    #     [{number: 1, letter: 'a', name: 'Foo', city: 'Foobaria'},
+    #      {number: 2, letter: 'b', name: 'Bar', city: 'Barbaza'},
+    #      {number: 2, letter: 'b', name: 'Baz', city: 'Barbaza'}])
+    # end
+
+  describe '#join!' do
+
+    before(:each) do
+      @one_ds = Datastream.new [{number: 1,   letter: 'a', name: 'Foo'},
+                                {number: 2,   letter: 'a', name: 'Bar'},
+                                {number: 2,   letter: 'b', name: 'Baz'},
+                                {number: nil, letter: 'c', name: 'Foobar'}]
+
+      @another_ds = Datastream.new [{number: 1,   letter: 'a', city: 'Foobaria'},
+                                    {number: 2,   letter: 'b', city: 'Barbaza'},
+                                    {number: 3,   letter: 'b', city: 'Bazfooa'},
+                                    {number: nil, letter: 'c', city: '01'}]
+    end
+
+    it 'returns itself' do
+      expect(@one_ds.join!(@another_ds).object_id).to eq(@one_ds.object_id)
+    end
+
+    it 'performs a natural join between two datasets' do
+      @one_ds.join! @another_ds
+
+      expect(@one_ds.data).to eq(
+        [{number: 1, letter: 'a', name: 'Foo', city: 'Foobaria'},
+         {number: 2, letter: 'b', name: 'Baz', city: 'Barbaza'}])
+    end
+
+    it 'raises an exception if the datastreams cannot be joined' do
+      expect { @one_ds.join! Datastream.new }.to raise_error(NullJoin,
+        'Datastreams do not share any column')
+    end
+  end
+
+  describe '#join_and_delete' do
+
+    before(:each) do
+      @one_ds = Datastream.new [{number: 1,   letter: 'a', name: 'Foo'},
+                                {number: 2,   letter: 'a', name: 'Bar'},
+                                {number: 2,   letter: 'b', name: 'Baz'},
+                                {number: nil, letter: 'c', name: 'Foobar'}]
+
+      @another_ds = Datastream.new [{number: 1,   letter: 'a', city: 'Foobaria'},
+                                    {number: 2,   letter: 'b', city: 'Barbaza'},
+                                    {number: 3,   letter: 'b', city: 'Bazfooa'},
+                                    {number: nil, letter: 'c', city: '01'}]
+    end
+
+
+    it 'does not modifies itself' do
+      @one_ds.join_and_delete @another_ds
+
+      expect(@one_ds.data).to eq(
+        [{number: 1,   letter: 'a', name: 'Foo'},
+         {number: 2,   letter: 'a', name: 'Bar'},
+         {number: 2,   letter: 'b', name: 'Baz'},
+         {number: nil, letter: 'c', name: 'Foobar'}])
+    end
+
+    it 'does not modifies the joining datastream' do
+      @one_ds.join_and_delete @another_ds
+
+      expect(@another_ds.data).to eq(
+        [{number: 1,   letter: 'a', city: 'Foobaria'},
+         {number: 2,   letter: 'b', city: 'Barbaza'},
+         {number: 3,   letter: 'b', city: 'Bazfooa'},
+         {number: nil, letter: 'c', city: '01'}])
+    end
+
+    it 'performs a natural join between two datasets and deletes joining columns' do
+      ds = @one_ds.join_and_delete @another_ds
+
+      expect(ds.data).to eq(
+        [{name: 'Foo', city: 'Foobaria'},
+         {name: 'Baz', city: 'Barbaza'}])
+    end
+  end
+
+  describe '#join_and_delete!' do
+
+    before(:each) do
+      @one_ds = Datastream.new [{number: 1,   letter: 'a', name: 'Foo'},
+                                {number: 2,   letter: 'a', name: 'Bar'},
+                                {number: 2,   letter: 'b', name: 'Baz'},
+                                {number: nil, letter: 'c', name: 'Foobar'}]
+
+      @another_ds = Datastream.new [{number: 1,   letter: 'a', city: 'Foobaria'},
+                                    {number: 2,   letter: 'b', city: 'Barbaza'},
+                                    {number: 3,   letter: 'b', city: 'Bazfooa'},
+                                    {number: nil, letter: 'c', city: '01'}]
+    end
+
+    it 'returns itself' do
+      expect(@one_ds.join_and_delete!(@another_ds).object_id).to eq(@one_ds.object_id)
+    end
+
+    it 'performs a natural join between two datasets and deletes joining columns' do
+      @one_ds.join_and_delete! @another_ds
+
+      expect(@one_ds.data).to eq(
+        [{name: 'Foo', city: 'Foobaria'},
+         {name: 'Baz', city: 'Barbaza'}])
+    end
+  end
+
+  describe '#union_all' do
+
+    before(:each) do
+      @one_ds = Datastream.new [{number: 1, letter: 'a'},
+                                {number: 2, letter: 'a'}]
+
+      @another_ds = Datastream.new [{letter: 'b', name: 'Baz'},
+                                    {letter: 'c', name: 'Foobar'}]
+    end
+
+    it 'does not modifies itself' do
+      @one_ds.union_all @another_ds
+
+      expect(@one_ds.data).to eq(
+        [{number: 1, letter: 'a'},
+         {number: 2, letter: 'a'}])
+    end
+
+    it 'does not modifies the joining datastream' do
+      @one_ds.union_all @another_ds
+
+      expect(@another_ds.data).to eq(
+        [{letter: 'b', name: 'Baz'},
+         {letter: 'c', name: 'Foobar'}])
+    end
+
+    it 'combines two datastream into a single one' do
+      ds = @one_ds.union_all @another_ds
+
+      expect(ds.data).to eq(
+        [{number: 1,   letter: 'a', name: nil},
+         {number: 2,   letter: 'a', name: nil},
+         {number: nil, letter: 'b', name: 'Baz'},
+         {number: nil, letter: 'c', name: 'Foobar'}])
+    end
+  end
+
+  describe '#union_all!' do
+
+    before(:each) do
+      @one_ds = Datastream.new [{number: 1, letter: 'a'},
+                                {number: 2, letter: 'a'}]
+
+      @another_ds = Datastream.new [{letter: 'b', name: 'Baz'},
+                                    {letter: 'c', name: 'Foobar'}]
+    end
+
+    it 'returns itself' do
+      expect(@one_ds.union_all!(@another_ds).object_id).to eq(@one_ds.object_id)
+    end
+
+    it 'combines two datastream into a single one' do
+      @one_ds.union_all! @another_ds
+
+      expect(@one_ds.data).to eq(
+        [{number: 1,   letter: 'a', name: nil},
+         {number: 2,   letter: 'a', name: nil},
+         {number: nil, letter: 'b', name: 'Baz'},
+         {number: nil, letter: 'c', name: 'Foobar'}])
+    end
+  end
+
+  describe '#group!' do
+    pending 
+  end
+
 end
