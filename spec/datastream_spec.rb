@@ -30,21 +30,23 @@ describe Datastream do
   it { should respond_to(:headers) }
   # it { is_expected.to respond_to(:data_types) }
 
-  # map, pop, shift, unshift, all, first, last, length/count, empty?
+  # EXTRACT
+
+  # describe '#raw'
 
   # En el bloque:
-  # valores por defecto/vacío
+  # valores por defecto (null/empty)
   # casteo
   # mapeo
   # strip
   # bloques
 
-  # describe '#raw'
+  # TRANSFORM
 
-  # describe '#push'
-  # describe '#<<'
-
-  describe '#where'
+  # Enumerable and Array instance methods could be wrapped but for now
+  # they shall be accessed directly over 'datastream.data'.
+  # #each, #map, #pop, #push/#<<, #shift, #unshift,
+  # #all, #first, #last, #length/#count, #empty?
 
   # describe '#order'
   # describe '#sort'
@@ -56,20 +58,22 @@ describe Datastream do
   # describe '#outer_join'
 
   # describe '#union'
-  # describe '#|'
-  # describe '#+'
+  # Alias #union to #|
+
+  # Alias #union_all to #+.
 
   # describe '#except'
   # describe '#except_all'
-  # describe '#-'
+  # Alias #except_all to #-.
 
   # describe '#intersect'
-  # describe '#&'
+  # Alias #intersect to #&
   # describe '#intersect_all'
 
-  describe '#distinct'
-  # describe '#uniq'
-  # describe '#unique'
+  # Alias #distinct to #uniq and #unique
+
+  # Methods that do datastream damming:
+  # #group, #distinct
 
   describe '#transform' do
 
@@ -109,7 +113,7 @@ describe Datastream do
     # TODO: row number, count, create row, delete row, readonly_row access.
 
     it 'returns itself' do
-      expect(@ds.transform!.object_id).to eq(@ds.object_id)
+      expect(@ds.transform!{}.object_id).to eq(@ds.object_id)
     end
 
     describe '{ create }' do
@@ -634,6 +638,152 @@ describe Datastream do
 
   describe '#group!' do
     pending 
+  end
+
+  describe '#order!' do
+    pending
+  end
+
+  describe '#where' do
+
+    before(:each) do
+      @ds = Datastream.new [{number: 1, letter: 'a', name: 'Foo', city: 'Foobaria'},
+                            {number: 2, letter: 'a', name: 'Bar', city: 'Barbaza'},
+                            {number: 2, letter: 'b', name: 'Baz', city: 'Bazfooa'},
+                            {number: 2, letter: 'c', name: 'Foobaz', city: '01'},
+                            {number: 3, letter: 'c', name: 'Foobar', city: 'Barbaza'}]
+    end
+
+    it 'does not modifies itself' do
+      @ds.where name: 'Foo'
+
+      expect(@ds.data).to eq(
+        [{number: 1, letter: 'a', name: 'Foo', city: 'Foobaria'},
+         {number: 2, letter: 'a', name: 'Bar', city: 'Barbaza'},
+         {number: 2, letter: 'b', name: 'Baz', city: 'Bazfooa'},
+         {number: 2, letter: 'c', name: 'Foobaz', city: '01'},
+         {number: 3, letter: 'c', name: 'Foobar', city: 'Barbaza'}])
+    end
+
+    it 'filters a datastream' do
+      ds = @ds.where number: 1..2, letter: ['a', 'b'], 'name' => /ba/i, 'city' => 'Barbaza'
+
+      expect(ds.data).to eq([{number: 2, letter: 'a', name: 'Bar', city: 'Barbaza'}])
+    end
+  end
+
+  describe '#where!' do
+
+    before(:each) do
+      @ds = Datastream.new [{number: 1, letter: 'a', name: 'Foo', city: 'Foobaria'},
+                            {number: 2, letter: 'a', name: 'Bar', city: 'Barbaza'},
+                            {number: 2, letter: 'b', name: 'Baz', city: 'Bazfooa'},
+                            {number: 2, letter: 'c', name: 'Foobaz', city: '01'},
+                            {number: 3, letter: 'c', name: 'Foobar', city: 'Barbaza'}]
+    end
+    
+    it 'returns itself' do
+      expect(@ds.where!(name: 'Foo').object_id).to eq(@ds.object_id)
+    end
+
+    it 'filters a datastream' do
+      @ds.where! number: 1..2, letter: ['a', 'b'], 'name' => /ba/i, 'city' => 'Barbaza'
+
+      expect(@ds.data).to eq([{number: 2, letter: 'a', name: 'Bar', city: 'Barbaza'}])
+    end
+
+    it 'raises an exception if a column is missing' do
+      expect {
+
+        @ds.where! NAME: 'Foo'
+
+      }.to raise_error(MissingColumn,
+        "Column 'NAME' was not found")
+    end
+  end
+
+  describe '#distinct' do
+
+    before(:each) do
+      @ds = Datastream.new [{number: 1, letter: 'a', name: 'Foo'},
+                            {number: 1, letter: 'a', name: 'Bar'},
+                            {number: 2, letter: 'a', name: 'Baz'},
+                            {number: 2, letter: 'b', name: 'Foobaz'},
+                            {number: 2, letter: 'b', name: 'Foobaz'}]
+    end
+
+    it 'does not modifies itself' do
+      @ds.distinct :name
+
+      expect(@ds.data).to eq(
+        [{number: 1, letter: 'a', name: 'Foo'},
+         {number: 1, letter: 'a', name: 'Bar'},
+         {number: 2, letter: 'a', name: 'Baz'},
+         {number: 2, letter: 'b', name: 'Foobaz'},
+         {number: 2, letter: 'b', name: 'Foobaz'}])
+    end
+
+    it 'lists only different values' do
+      ds = @ds.distinct :number, 'letter'
+
+      expect(ds.data).to eq(
+        [{number: 1, letter: 'a'},
+         {number: 2, letter: 'a'},
+         {number: 2, letter: 'b'}])
+    end
+
+    it 'lists only different values (impltcitly)' do
+      ds = @ds.distinct!
+
+      expect(ds.data).to eq(
+        [{number: 1, letter: 'a', name: 'Foo'},
+         {number: 1, letter: 'a', name: 'Bar'},
+         {number: 2, letter: 'a', name: 'Baz'},
+         {number: 2, letter: 'b', name: 'Foobaz'}])
+    end
+  end
+
+  describe '#distinct!' do
+
+    before(:each) do
+      @ds = Datastream.new [{number: 1, letter: 'a', name: 'Foo'},
+                            {number: 1, letter: 'a', name: 'Bar'},
+                            {number: 2, letter: 'a', name: 'Baz'},
+                            {number: 2, letter: 'b', name: 'Foobaz'},
+                            {number: 2, letter: 'b', name: 'Foobaz'}]
+    end
+    
+    it 'returns itself' do
+      expect(@ds.distinct!(:name).object_id).to eq(@ds.object_id)
+    end
+
+    it 'lists only different values' do
+      @ds.distinct! :number, 'letter'
+
+      expect(@ds.data).to eq(
+        [{number: 1, letter: 'a'},
+         {number: 2, letter: 'a'},
+         {number: 2, letter: 'b'}])
+    end
+
+    it 'lists only different values (impltcitly)' do
+      @ds.distinct!
+
+      expect(@ds.data).to eq(
+        [{number: 1, letter: 'a', name: 'Foo'},
+         {number: 1, letter: 'a', name: 'Bar'},
+         {number: 2, letter: 'a', name: 'Baz'},
+         {number: 2, letter: 'b', name: 'Foobaz'}])
+    end
+
+    it 'raises an exception if a column is missing' do
+      expect {
+
+        @ds.distinct! :NAME
+
+      }.to raise_error(MissingColumn,
+        "Column 'NAME' was not found")
+    end
   end
 
 end

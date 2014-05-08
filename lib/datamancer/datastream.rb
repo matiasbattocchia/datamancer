@@ -36,7 +36,6 @@ module Datamancer
     end
 
     def transform! &block
-      if block
         @outer_self = block.binding.eval 'self'
 
         @data.each do |row|
@@ -45,16 +44,19 @@ module Datamancer
 
           instance_eval &block
         end
-      end
 
       self
     end
 
-    def select *columns
+    def select column, *columns
+      columns << column
+      
       duplicate.select! *columns
     end
 
-    def select! *columns
+    def select! column, *columns
+      columns << column
+
       columns.map!(&:to_sym)
 
       columns.each do |column_name|
@@ -130,6 +132,10 @@ module Datamancer
         columns.each { |column| delete column }
       end
     end
+
+    def union_all datastream
+      duplicate.union_all! datastream
+    end
   
     def union_all! datastream
       keys = self.headers | datastream.headers
@@ -151,8 +157,62 @@ module Datamancer
       self
     end
 
-    def union_all datastream
-      duplicate.union_all! datastream
+    def where conditions
+      duplicate.where! conditions
+    end
+
+    def where! conditions
+      conditions = conditions.inject({}){|h,(k,v)| h[k.to_sym] = v; h}
+
+      str = []
+
+      conditions.each do |column_name, condition|
+        raise MissingColumn,
+          "Column '#{column_name}' was not found" unless @headers.include? column_name
+
+        str << case condition
+               when Array, Range then "conditions[:#{column_name}].include? row[:#{column_name}]"
+               when Regexp then "row[:#{column_name}] =~ conditions[:#{column_name}]"
+               else "row[:#{column_name}] == conditions[:#{column_name}]" end
+      end
+
+      str = 'not (' + str.join(' and ') + ')'
+      @data.reject! { |row| eval str }
+
+      self
+    end
+
+    def distinct *columns
+      duplicate.distinct! *columns
+    end
+
+    def distinct! *columns
+      if columns.empty?
+        columns = @headers
+      else
+        columns.map!(&:to_sym)
+      end
+
+      columns.each do |column_name|
+        raise MissingColumn,
+          "Column '#{column_name}' was not found" unless @headers.include? column_name
+      end
+
+      # I guess that I could use Set from Stdlib here as well.
+      distinct_values = {}
+
+      @data.reject! do |row|
+        key = columns.map { |column| row[column] }
+
+        if distinct_values[key]
+          true
+        else
+          distinct_values[key] = true
+          false
+        end
+      end
+
+      select! *columns
     end
 
     private
