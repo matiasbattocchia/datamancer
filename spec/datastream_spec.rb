@@ -48,7 +48,8 @@ describe Datastream do
   # #each, #map, #pop, #push/#<<, #shift, #unshift,
   # #all, #first, #last, #length/#count, #empty?
 
-  # describe '#order'
+  # describe '#ungroup'
+
   # describe '#sort'
   # describe '#reverse_order'
   # describe '#reverse_sort'
@@ -73,7 +74,7 @@ describe Datastream do
   # Alias #distinct to #uniq and #unique
 
   # Methods that do datastream damming:
-  # #group, #distinct
+  # #group, #distinct, aggregations...
 
   describe '#transform' do
 
@@ -636,20 +637,16 @@ describe Datastream do
     end
   end
 
-  describe '#group!' do
+  describe '#group' do
 
     before(:each) do
       @ds = Datastream.new [{number: 1, letter: 'a', name: 'Foo',    coins: 2},
                             {number: 1, letter: 'a', name: 'Bar',    coins: 5},
                             {number: 2, letter: 'a', name: 'Baz',    coins: 1},
-                            {number: 2, letter: 'b', name: 'Foobaz', coins: 3},
-                            {number: 2, letter: 'b', name: 'Foobar', coins: 2}]
+                            {number: 2, letter: 'b', name: 'Foobar', coins: 3},
+                            {number: 2, letter: 'b', name: 'Foobaz', coins: 2}]
     end
  
-    it 'returns itself' do
-      expect(@ds.group!(:number).object_id).to eq(@ds.object_id)
-    end
-
     # it 'aggregates a datastream' do
     #   pending
     #   @ds.group! :number, 'letter'
@@ -666,6 +663,18 @@ describe Datastream do
     # 
     # 1. Calcular la varianza por grupo [1/n * sum(x-X)**2].
     #    x es el elemento, X es el promedio del grupo.
+    # 2. SELECT Employees.LastName, COUNT(Orders.OrderID) AS NumberOfOrders 
+    #    FROM (Orders
+    #    INNER JOIN Employees
+    #    ON Orders.EmployeeID=Employees.EmployeeID)
+    #    GROUP BY LastName
+    #    HAVING COUNT(Orders.OrderID) > 10;
+
+    # orders.join(employees).group(:last_name).transform do
+    #   create :number_of_orders, result.count
+    #   delete :result
+    # end.where(number_of_orders: '> 10')
+
 
     ## SQL aggregate functions ##
     #
@@ -684,60 +693,153 @@ describe Datastream do
     # Minimum()
     # Mode()
     # Sum()
-
-    ## OPCIÓN B ##
-
-    # Agregar es colapsar sobre un arreglo por cada columna
-    # y por grupo, sus correspondientes valores. Ejemplo:
-    
-    @ds.group!(:number, :letter)
-
-    expect(@ds.data).to eq(
-      [{number: 1, letter: 'a', coins: [2,5] },
-       {number: 2, letter: 'a', coins: [1]   },
-       {number: 2, letter: 'b', coins: [3,2] }])
-
-    # Una columna llamada 'count' posiblemente deba ser agregada para
-    # conservar la información del tamaño del grupo, y valores nil
-    # no añadidos al arreglo.
-
-    # Una selección previa de columnas dejaría de lado las columnas
-    # que no deben ser agrupadas en caso de ser necesario.
-
-    # Entonces las funciones de agregación se implementan a
-    # través de una transformación:
-
-    @ds.transform! do
-      update :coins, coins.reduce(:+) # Sum array elements.
-      create :coin_average, coins.reduce(:+) / count
-      create :coin_maximum, coins.max
-    end
-
-    # La opción B se ve linda; sin embargo me parece que no aporta nada útil.
-
-    # Para complir con el caso de uso, rápidamente:
-    # 1. Agrupar para obtener el promedio, no sobreescribir el datastream.
-    # 2. Unir los datastream original y agrupado.
-    # 3. Transformar.
+    # Aggregate(), es genérico, una especie de inject().
     #
-    # Una variante es obviar el paso 2 y utilizar where sobre el datastream
-    # agrupado. Es más legible, quizás menos eficiente.
+    # Estos métodos se le aplican al datastream y quedan cacheados dentro del mismo (salvo aggregate
+    # es genérico).
+    #
+    # orders.join(employees).group(:last_name).count(:orders).where(orders: gt 10)
+    #
+    # Si uno de los métodos de agregación se llama sobre un datastream que agrupa datastreams, pueden
+    # pasar dos cosas: si la columna a la que se hace referencia está en el datastream objetivo,
+    # funciona normalmente; pero si no, antes de tirar MissingColumn, busca en los datastreams agrupados.
+    # En caso de encontrarla realiza la agregación y la "extrae" a la fila que contiene al grupo.
+    # Opcionalmente se puede elegir el nombre de la nueva columna.
+
+    # ## Opción A ##
+
+    # # Suma objetos de clase Numeric, implícitamente; o explícitamente (objetos 
+    # # de cualquier clase) si se especifica pasando un bloque la operación con
+    # # un método, proc, o bloque.
+
+    # @ds.group! :number, 'letter'
+
+    # @ds.group! :number, 'letter' do
+    #   aggregate :coins,  coin
+    # end
+
+    # # Una columna llamada 'count' posiblemente deba ser agregada para
+    # # conservar la información del tamaño del grupo.
+    
+    # expect(@ds.data).to eq(
+    #   [{number: 1, letter: 'a', coins: 7, count: 2},
+    #    {number: 2, letter: 'a', coins: 1, count: 1},
+    #    {number: 2, letter: 'b', coins: 5, count: 2}])
+
+    # ## OPCIÓN B ##
+
+    # # Agregar es colapsar sobre un arreglo por cada columna
+    # # y por grupo, sus correspondientes valores. Ejemplo:
+ 
+    # @ds.group!(:number, :letter)
+
+    # expect(@ds.data).to eq(
+    #   [{number: 1, letter: 'a', names: ['Foo','Bar'],       coins: [2,5] },
+    #    {number: 2, letter: 'a', names: ['Baz'],             coins: [1]   },
+    #    {number: 2, letter: 'b', names: ['Foobar','Foobaz'], coins: [3,2] }])
+
+    # # Una columna llamada 'count' posiblemente deba ser agregada para
+    # # conservar la información del tamaño del grupo, y valores nil
+    # # no añadidos al arreglo.
+
+    # # Una selección previa de columnas dejaría de lado las columnas
+    # # que no deben ser agrupadas en caso de ser necesario.
+
+    # # Entonces las funciones de agregación se implementan a
+    # # través de una transformación:
+
+    # @ds.transform! do
+    #   update :coins, coins.reduce(:+) # Sum array elements.
+    #   create :coin_average, coins.reduce(:+) / count
+    #   create :coin_maximum, coins.max
+    # end
+
+    # # La opción B se ve linda; sin embargo me parece que no aporta nada útil.
+
+    # # Para cumplir con el caso de uso, rápidamente:
+    # # 1. Agrupar para obtener el promedio, no sobreescribir el datastream.
+    # # 2. Unir los datastream original y agrupado.
+    # # 3. Transformar.
+    # #
+    # # Una variante es obviar el paso 2 y utilizar where sobre el datastream
+    # # agrupado. Es más legible, quizás menos eficiente.
+
+    ## OPCIÓN C ##
+
+    # @ds.group!(:number, :letter)
+
+    # expect(@ds.data).to eq(
+    #   [{number: 1, letter: 'a', result: Datastream },
+    #    {number: 2, letter: 'a', result: Datastream },
+    #    {number: 2, letter: 'b', result: Datastream }]) 
+
+    # @ds.transform! do
+    #   create :members, result.count
+    #   create :coins, result.sum(:coins)
+    #   create :variance, result.aggregate { ( coins - result.avr(:coins) ) ** 2 } / result.count
+    #   delete :result
+    # end
+
+    # expect(@ds.data) to.eq(
+    #   [{number: 1, letter: 'a', members: 2, coins: 7, variance: 5},
+    #    {number: 1, letter: 'a', members: 1, coins: 1, variance: 2},
+    #    {number: 2, letter: 'b', members: 2, coins: 5, variance: 3}]
 
     ####
 
-    it 'aggregates a datastream (implicitly)' do
-      @ds.group! :number, 'letter'
+    # Lo siguiente se lograría mejor con #ungroup, que sería indispensable
+    # para procesos en paralelo. Mientras tanto, es una forma posible.
+
+    # (group_ds = @ds.group(:number, :letter)).each do
+    #   result.transform! do
+    #     create :deviation, result.avr(:coins) - coins
+    #   end
+    # end
+
+    # expect(@ds.data) to.eq(
+    #   [{number: 1, letter: 'a', name: 'Foo',    coins: 2, deviation: 5},
+    #    {number: 1, letter: 'a', name: 'Bar',    coins: 5, deviation: 2},
+    #    {number: 2, letter: 'a', name: 'Baz',    coins: 1, deviation: 0},
+    #    {number: 2, letter: 'b', name: 'Foobar', coins: 3, deviation: 2},
+    #    {number: 2, letter: 'b', name: 'Foobaz', coins: 2, deviation: 3}]
+
+    # expect(group_ds.data).to eq(
+    #   [{number: 1, letter: 'a', result: Datastream },
+    #    {number: 2, letter: 'a', result: Datastream },
+    #    {number: 2, letter: 'b', result: Datastream }]) 
+
+    ####
+
+    it 'does not modifies itself' do
+      @ds.group :name
 
       expect(@ds.data).to eq(
-        [{number: 1, letter: 'a', coins: 7},
-         {number: 2, letter: 'a', coins: 1},
-         {number: 2, letter: 'b', coins: 5}])
+        [{number: 1, letter: 'a', name: 'Foo',    coins: 2},
+         {number: 1, letter: 'a', name: 'Bar',    coins: 5},
+         {number: 2, letter: 'a', name: 'Baz',    coins: 1},
+         {number: 2, letter: 'b', name: 'Foobar', coins: 3},
+         {number: 2, letter: 'b', name: 'Foobaz', coins: 2}])
+    end
+
+    it 'partitions the datastream into groups' do
+      ds = @ds.group :number, 'letter'
+
+      ds.data.each do |row|
+        row[:group] = row[:group].data
+      end
+
+      expect(ds.data).to eq(
+        [{number: 1, letter: 'a', group: [{number: 1, letter: 'a', name: 'Foo',    coins: 2},
+                                          {number: 1, letter: 'a', name: 'Bar',    coins: 5}]},
+         {number: 2, letter: 'a', group: [{number: 2, letter: 'a', name: 'Baz',    coins: 1}]},
+         {number: 2, letter: 'b', group: [{number: 2, letter: 'b', name: 'Foobar', coins: 3},
+                                          {number: 2, letter: 'b', name: 'Foobaz', coins: 2}]}])
     end
 
     it 'raises an exception if a column is missing' do
       expect {
 
-        @ds.group! :NAME
+        @ds.group :NAME
 
       }.to raise_error(MissingColumn,
         "Column 'NAME' was not found")

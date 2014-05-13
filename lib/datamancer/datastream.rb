@@ -77,6 +77,7 @@ module Datamancer
       duplicate.join! datastream
     end
 
+    # TODO: join! creates new rows. It should not.
     def join! datastream
       left = self.data
       right = datastream.data
@@ -137,6 +138,7 @@ module Datamancer
       duplicate.union_all! datastream
     end
   
+    # TODO: union_all! creates new rows. It should not.
     def union_all! datastream
       keys = self.headers | datastream.headers
 
@@ -213,6 +215,42 @@ module Datamancer
       end
 
       select! *columns
+    end
+
+    def group *columns
+      if columns.empty?
+        columns = @headers
+      else
+        columns.map!(&:to_sym)
+      end
+
+      columns.each do |column_name|
+        raise MissingColumn,
+          "Column '#{column_name}' was not found" unless @headers.include? column_name
+      end
+      
+      distinct_values = {}
+
+      @data.each do |row|
+        key = columns.map { |column| row[column] }
+
+        unless distinct_values[key]
+          distinct_values[key] = group_row = {}
+          columns.each { |column| group_row[column] = row[column] }
+          group_row[:group] = []
+        end
+
+        distinct_values[key][:group] << row
+      end
+
+      output = []
+
+      distinct_values.each do |key, row|
+        row[:group] = Datastream.new row[:group]
+        output << row
+      end
+
+      Datastream.new output
     end
 
     private
